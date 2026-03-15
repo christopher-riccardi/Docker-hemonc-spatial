@@ -1,0 +1,1 @@
+This directory should contain any code that may be accessed routinely, such as aux functions etc.

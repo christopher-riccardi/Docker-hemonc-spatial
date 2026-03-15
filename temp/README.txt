@@ -1,0 +1,1 @@
+This directory should contain any temporary files, that may be safely removed

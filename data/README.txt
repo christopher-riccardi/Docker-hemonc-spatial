@@ -1,0 +1,1 @@
+This directory should contain any input data such as shared datasets, aux inputs and files etc.

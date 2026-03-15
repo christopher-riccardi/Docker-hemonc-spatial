@@ -1,0 +1,14 @@
+services:
+  rstudio:
+    build: .
+    image: hemonc-spatial:latest
+    container_name: hemonc-spatial
+    ports:
+      - "8787:8787"
+    environment:
+      - PASSWORD=rstudio
+    volumes:
+      - ./data:/home/rstudio/data
+      - ./projects:/home/rstudio/projects
+      - ./src:/home/rstudio/src
+      - ./temp:/home/rstudio/temp
