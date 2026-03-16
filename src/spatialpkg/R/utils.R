@@ -38,7 +38,7 @@ NULL
   #' Seurat, SingleCellExperiment, SpatialExperiment
   object.class <- class(object)
   if(object.class == "SingleCellExperiment" || object.class == "SpatialExperiment"){
-    as.data.frame(colData(object))
+    as.data.frame(SingleCellExperiment::colData(object))
   } else if(object.class == "Seurat"){
     as.data.frame(object@meta.data)
   } else {
