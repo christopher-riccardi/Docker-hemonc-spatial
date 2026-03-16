@@ -30,8 +30,8 @@
 NULL
 
 CreateExperiment <- function(counts, metadata,
-                                x_col = "x", y_col = "y",
-                                type = c("SpatialExperiment", "SingleCellExperiment")) {
+                             x_col = "x", y_col = "y",
+                             type = c("SpatialExperiment", "SingleCellExperiment")) {
   # counts : numeric matrix with rows = cells, cols = genes (assumed validated)
   # metadata: data.frame with rownames set to the same cell identifiers (assumed validated)
   # x_col, y_col : names of spatial columns in metadata (used only for SpatialExperiment)
