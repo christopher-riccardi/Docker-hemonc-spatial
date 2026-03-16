@@ -52,7 +52,7 @@ NULL
   #' returns gene x cell counts matrix
   object.class <- class(object)
   if(object.class == "SingleCellExperiment" || object.class == "SpatialExperiment"){
-    counts(object)
+    SingleCellExperiment::counts(object)
   } else if(object.class == "Seurat"){
     object[["RNA"]]$counts
   } else {
