@@ -178,7 +178,8 @@ PlotSpatialCat <- function(object,
   cell.pt.size <- rep(pt_size, nrow(dataframe))
   
   if(pt_size_prop){
-    cell.total.counts <- colSums(.pull_counts(object))
+    cell.total.counts <- colSums(as.matrix(.pull_counts(object)))
+    cell.total.counts <- log2(cell.total.counts)
     cell.total.counts <- log2(cell.total.counts)
     #'scale so that the maximum of cell.total.counts equals pt_size
     #' minmax scaling
@@ -382,7 +383,7 @@ PlotSpatialFeature <- function(object,
   cell.pt.size <- rep(pt_size, nrow(dataframe))
   
   if(pt_size_prop){
-    cell.total.counts <- colSums(.pull_counts(object))
+    cell.total.counts <- colSums(as.matrix(.pull_counts(object)))
     cell.total.counts <- log2(cell.total.counts)
     #'scale so that the maximum of cell.total.counts equals pt_size
     #' minmax scaling
