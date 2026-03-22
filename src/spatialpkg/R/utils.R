@@ -407,3 +407,131 @@ PlotSpatialFeature <- function(object,
   
   return(px)
 }
+
+
+ApproxConversionFactor <- function(object, zlim=1, assumed=10){
+  #' an avg cell is X um wide. Distance between two centroids
+  #' is approximately X um. Median distance between 
+  #' high-quality cells and any surrounding ones should be X.
+  #' assume X=10 um, X should tell the scaling factor for 10 um.
+  #' This is an approximation that does not take composition into acct
+  #' zlim is the Z score cutoff to pick reference cells. approx is the
+  #' assumed cell centroid to cell centroid distance.
+
+  object.class <- class(object)
+  if(object.class == "SingleCellExperiment" || object.class == "SpatialExperiment"){
+    total.cts <- log1p(SingleCellExperiment::colData(object)$sum)
+    detected.trx <- log1p(SingleCellExperiment::colData(object)$detected)
+  } else if(object.class == "Seurat"){
+    total.cts <- log1p(object@meta.data$nCount_RNA)
+    detected.trx <- log1p(object@meta.data$nFeature_RNA)
+  } else {
+    stop("Unsupported object type.")
+  }
+  
+  x.total.cts <- mean(total.cts)
+  sd.total.cts <- stats::sd(total.cts)
+  z.total.cts <- (total.cts-x.total.cts)/sd.total.cts
+  
+  x.detected.trx <- mean(detected.trx)
+  sd.detected.trx <- stats::sd(detected.trx)  
+  z.detected.trx <- (detected.trx-x.detected.trx)/sd.detected.trx
+  
+  #' reference cells set composed of cells with good stats
+  reference <- -zlim < z.total.cts & z.total.cts < zlim & 
+    -zlim < z.detected.trx & z.detected.trx < zlim
+  
+  message("Using ", sum(reference), " cells as reference")
+  
+  coords <- as.data.frame(.pull_metadata(object)[c("x", "y")])
+  ref.data <- cbind(coords, reference=reference)
+  
+  nn.res <- RANN::nn2(coords, k = 2) 
+  
+  closest.distances <- sapply(which(ref.data$reference), function(i) {
+    nn_idx <- nn.res$nn.idx[i, 2]
+    nn_dist <- nn.res$nn.dists[i, 2]
+    return(nn_dist)
+  })
+  assumed/stats::median(closest.distances)
+}
+
+
+
+
+SalvadorChan <- function(y, min_frac = 0.25) {
+  "
+  This function applies the L method (Salvador and Chan, 2004) for the estimation 
+  of the appropriate number of classes on an evaluation graph.
+  Readapted from https://www.mathworks.com/matlabcentral/fileexchange/38771-l-method
+  https://www.mathworks.com/matlabcentral/mlc-downloads/downloads/submissions/38771/versions/2/screenshot.jpg
+  but added a minimum segment length for robustness
+  "
+  x <- seq_along(y)
+  
+  n <- length(y)
+  min_seg <- max(2, floor(min_frac * n))
+  
+  ks <- min_seg:(n - min_seg)
+  
+  total_sse <- sapply(ks, function(k) {
+    fit_l <- stats::lm(y[1:k] ~ x[1:k])
+    fit_r <- stats::lm(y[(k + 1):n] ~ x[(k + 1):n])
+    
+    sum(stats::resid(fit_l)^2) + sum(stats::resid(fit_r)^2)
+  })
+  
+  k_star <- ks[which.min(total_sse)]
+  
+  list(
+    elbow_index = k_star,
+    elbow_x = x[k_star],
+    total_sse = total_sse,
+    ks = ks
+  )
+}
+
+.summarize_pair <- function(pp, mark_i, mark_j, nsim, min.r=100) {
+  
+  "
+  EDIT
+  
+  summarize the spatial association between two cell populations
+  in a multitype point pattern using a Monte Carlo test based on the cross
+  pair-correlation function pcfcross
+  
+  This way we test the H0 that the two cell types are spatially independent, 
+  conditional on the observed cell locations (and this is done by 
+  repeatedly randomizing cell-type labels and comparing the observed cross 
+  pair-correlation function to its distribution under the null
+  model)
+  For each distance in r.vec the observed pair-correlation value is classified as 
+  showing attraction above the global simulation envelope, repulsion (below) 
+  or no detectable deviation from independence.
+  then we aggregate these distance-wise classifications into a single
+  signed summary statistic, defined as the fraction of distances exhibiting
+  significant attraction minus the fraction exhibiting significant repulsion.
+  
+  Therefore the final summarized vale quantifies the dominant spatial trend between the
+  two cell populations across the entire distance interval: positive values
+  indicate overall attraction, negative values indicate overall repulsion, and
+  values near zero indicate no consistent spatial association.
+  "
+  
+  env <- spatstat.explore::envelope(
+    pp,
+    spatstat.explore::pcfcross.inhom,
+    i = mark_i,
+    j = mark_j,
+    simulate = expression(spatstat.random::rlabel(pp)),
+    nsim=nsim,
+    global=F
+  )
+  
+  df <- data.frame(env)
+  df <- df[df$r > min.r,]
+  df$signif <- TRUE
+  df[which(df$obs>df$lo & df$obs < df$hi), "signif"] <- FALSE
+  df$enrich <- ifelse(df$obs>1, 1, -1)
+  sum(df[df$signif==T, "enrich"])/nrow(df)
+}
